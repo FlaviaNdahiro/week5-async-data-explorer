@@ -21,7 +21,9 @@ app.innerHTML = `
     <section class="mx-auto mt-8 max-w-7xl">
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label class="block">
-          <span class="mb-1 block font-medium text-slate-700">Search recipes</span>
+          <span class="mb-1 block font-medium text-slate-700">
+            Search recipes
+          </span>
           <input
             id="search"
             type="search"
@@ -31,7 +33,9 @@ app.innerHTML = `
         </label>
 
         <label class="block">
-          <span class="mb-1 block font-medium text-slate-700">Filter by cuisine</span>
+          <span class="mb-1 block font-medium text-slate-700">
+            Filter by cuisine
+          </span>
           <select
             id="cuisine"
             class="w-full rounded-lg border border-orange-200 bg-white p-3"
@@ -41,8 +45,25 @@ app.innerHTML = `
         </label>
       </div>
 
+      <div class="mt-4">
+        <label class="block">
+          <span class="mb-1 block font-medium text-slate-700">
+            Sort recipes
+          </span>
+          <select
+            id="sort"
+            class="w-full rounded-lg border border-orange-200 bg-white p-3"
+          >
+            <option value="name">Name (A–Z)</option>
+            <option value="rating">Rating (highest first)</option>
+          </select>
+        </label>
+      </div>
+
       <div class="mt-4 flex items-center justify-between gap-4">
-        <p id="status" role="status" class="text-slate-700">Loading recipes...</p>
+        <p id="status" role="status" class="text-slate-700">
+          Loading recipes...
+        </p>
         <button
           id="clear"
           type="button"
@@ -64,10 +85,12 @@ const state = {
   recipes: [],
   search: '',
   cuisine: '',
+  sort: 'name',
 }
 
 const searchInput = document.querySelector('#search')
 const cuisineSelect = document.querySelector('#cuisine')
+const sortSelect = document.querySelector('#sort')
 const status = document.querySelector('#status')
 const recipesContainer = document.querySelector('#recipes')
 
@@ -83,9 +106,18 @@ function renderRecipes() {
     return matchesSearch && matchesCuisine
   })
 
-  status.textContent = `Showing ${filteredRecipes.length} of ${state.recipes.length} recipes`
+  const sortedRecipes = filteredRecipes.toSorted((a, b) => {
+    if (state.sort === 'rating') {
+      return b.rating - a.rating
+    }
 
-  if (filteredRecipes.length === 0) {
+    return a.name.localeCompare(b.name)
+  })
+
+  status.textContent =
+    `Showing ${sortedRecipes.length} of ${state.recipes.length} recipes`
+
+  if (sortedRecipes.length === 0) {
     recipesContainer.innerHTML = `
       <p class="rounded-xl bg-white p-6 text-slate-600 sm:col-span-2 lg:col-span-3">
         No recipes found. Try another search or cuisine.
@@ -94,12 +126,12 @@ function renderRecipes() {
     return
   }
 
-  recipesContainer.innerHTML = filteredRecipes.map(
-    ({ id, name, image, cuisine, difficulty, rating }) => `
+  recipesContainer.innerHTML = sortedRecipes.map(
+    ({ image, rating }) => `
       <article class="rounded-xl bg-white p-4 shadow-sm">
         <img
           src="${image}"
-          alt=""
+          alt="Recipe"
           class="h-48 w-full rounded-lg object-cover"
           loading="lazy"
         >
@@ -111,22 +143,27 @@ function renderRecipes() {
     `
   ).join('')
 
-  filteredRecipes.forEach((recipe, index) => {
+  sortedRecipes.forEach((recipe, index) => {
     const card = recipesContainer.children[index]
+
     card.querySelector('h2').textContent = recipe.name
-    card.querySelectorAll('p')[0].textContent = `Cuisine: ${recipe.cuisine}`
-    card.querySelectorAll('p')[1].textContent = `Difficulty: ${recipe.difficulty}`
+    card.querySelectorAll('p')[0].textContent =
+      `Cuisine: ${recipe.cuisine}`
+    card.querySelectorAll('p')[1].textContent =
+      `Difficulty: ${recipe.difficulty}`
   })
 }
 
 async function loadRecipes() {
   try {
     status.textContent = 'Loading recipes...'
-    const response = await getRecipes()
-    state.recipes = response
 
-    const cuisines = [...new Set(state.recipes.map(({ cuisine }) => cuisine))]
-      .sort()
+    const recipes = await getRecipes()
+    state.recipes = recipes
+
+    const cuisines = [
+      ...new Set(state.recipes.map(({ cuisine }) => cuisine)),
+    ].sort()
 
     cuisineSelect.innerHTML = '<option value="">All cuisines</option>'
 
@@ -153,11 +190,20 @@ cuisineSelect.addEventListener('change', (event) => {
   renderRecipes()
 })
 
+sortSelect.addEventListener('change', (event) => {
+  state.sort = event.target.value
+  renderRecipes()
+})
+
 document.querySelector('#clear').addEventListener('click', () => {
   state.search = ''
   state.cuisine = ''
+  state.sort = 'name'
+
   searchInput.value = ''
   cuisineSelect.value = ''
+  sortSelect.value = 'name'
+
   renderRecipes()
 })
 
