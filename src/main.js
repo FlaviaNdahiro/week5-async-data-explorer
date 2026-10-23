@@ -10,18 +10,47 @@ app.innerHTML = `
       <p class="text-sm font-semibold uppercase tracking-widest text-orange-600">
         Week 5 Project
       </p>
-
       <h1 class="mt-2 text-4xl font-bold text-slate-900">
         Recipes Explorer
       </h1>
-
       <p class="mt-2 text-slate-600">
         Discover delicious recipes from around the world.
       </p>
     </header>
 
     <section class="mx-auto mt-8 max-w-7xl">
-      <p id="status" class="text-slate-700">Loading recipes...</p>
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <label class="block">
+          <span class="mb-1 block font-medium text-slate-700">Search recipes</span>
+          <input
+            id="search"
+            type="search"
+            placeholder="Search by recipe name..."
+            class="w-full rounded-lg border border-orange-200 bg-white p-3"
+          >
+        </label>
+
+        <label class="block">
+          <span class="mb-1 block font-medium text-slate-700">Filter by cuisine</span>
+          <select
+            id="cuisine"
+            class="w-full rounded-lg border border-orange-200 bg-white p-3"
+          >
+            <option value="">All cuisines</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="mt-4 flex items-center justify-between gap-4">
+        <p id="status" role="status" class="text-slate-700">Loading recipes...</p>
+        <button
+          id="clear"
+          type="button"
+          class="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white"
+        >
+          Clear filters
+        </button>
+      </div>
 
       <div
         id="recipes"
@@ -31,45 +60,105 @@ app.innerHTML = `
   </main>
 `
 
+const state = {
+  recipes: [],
+  search: '',
+  cuisine: '',
+}
+
+const searchInput = document.querySelector('#search')
+const cuisineSelect = document.querySelector('#cuisine')
+const status = document.querySelector('#status')
+const recipesContainer = document.querySelector('#recipes')
+
+function renderRecipes() {
+  const filteredRecipes = state.recipes.filter((recipe) => {
+    const matchesSearch = recipe.name
+      .toLowerCase()
+      .includes(state.search.toLowerCase())
+
+    const matchesCuisine =
+      !state.cuisine || recipe.cuisine === state.cuisine
+
+    return matchesSearch && matchesCuisine
+  })
+
+  status.textContent = `Showing ${filteredRecipes.length} of ${state.recipes.length} recipes`
+
+  if (filteredRecipes.length === 0) {
+    recipesContainer.innerHTML = `
+      <p class="rounded-xl bg-white p-6 text-slate-600 sm:col-span-2 lg:col-span-3">
+        No recipes found. Try another search or cuisine.
+      </p>
+    `
+    return
+  }
+
+  recipesContainer.innerHTML = filteredRecipes.map(
+    ({ id, name, image, cuisine, difficulty, rating }) => `
+      <article class="rounded-xl bg-white p-4 shadow-sm">
+        <img
+          src="${image}"
+          alt=""
+          class="h-48 w-full rounded-lg object-cover"
+          loading="lazy"
+        >
+        <h2 class="mt-3 text-lg font-bold text-slate-900"></h2>
+        <p class="mt-2 text-sm text-slate-600"></p>
+        <p class="mt-1 text-sm text-slate-600"></p>
+        <p class="mt-2 font-semibold text-orange-600">⭐ ${rating}</p>
+      </article>
+    `
+  ).join('')
+
+  filteredRecipes.forEach((recipe, index) => {
+    const card = recipesContainer.children[index]
+    card.querySelector('h2').textContent = recipe.name
+    card.querySelectorAll('p')[0].textContent = `Cuisine: ${recipe.cuisine}`
+    card.querySelectorAll('p')[1].textContent = `Difficulty: ${recipe.difficulty}`
+  })
+}
+
 async function loadRecipes() {
-  const status = document.querySelector('#status')
-  const recipesContainer = document.querySelector('#recipes')
-
   try {
-    const recipes = await getRecipes()
+    status.textContent = 'Loading recipes...'
+    const response = await getRecipes()
+    state.recipes = response
 
-    status.textContent = `Loaded ${recipes.length} recipes successfully!`
+    const cuisines = [...new Set(state.recipes.map(({ cuisine }) => cuisine))]
+      .sort()
 
-    recipesContainer.innerHTML = recipes.map(
-      ({ id, name, image, cuisine, difficulty, rating }) => `
-        <article class="rounded-xl bg-white p-4 shadow-sm">
-          <img
-            src="${image}"
-            alt="${name.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}"
-            class="h-48 w-full rounded-lg object-cover"
-          >
+    cuisineSelect.innerHTML = '<option value="">All cuisines</option>'
 
-          <h2 class="mt-3 text-lg font-bold text-slate-900">
-            ${name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
-          </h2>
+    cuisines.forEach((cuisine) => {
+      const option = document.createElement('option')
+      option.value = cuisine
+      option.textContent = cuisine
+      cuisineSelect.append(option)
+    })
 
-          <p class="mt-2 text-sm text-slate-600">
-            Cuisine: ${cuisine}
-          </p>
-
-          <p class="mt-1 text-sm text-slate-600">
-            Difficulty: ${difficulty}
-          </p>
-
-          <p class="mt-2 font-semibold text-orange-600">
-            ⭐ ${rating}
-          </p>
-        </article>
-      `
-    ).join('')
+    renderRecipes()
   } catch (error) {
     status.textContent = `Could not load recipes: ${error.message}`
   }
 }
+
+searchInput.addEventListener('input', (event) => {
+  state.search = event.target.value.trim()
+  renderRecipes()
+})
+
+cuisineSelect.addEventListener('change', (event) => {
+  state.cuisine = event.target.value
+  renderRecipes()
+})
+
+document.querySelector('#clear').addEventListener('click', () => {
+  state.search = ''
+  state.cuisine = ''
+  searchInput.value = ''
+  cuisineSelect.value = ''
+  renderRecipes()
+})
 
 loadRecipes()
