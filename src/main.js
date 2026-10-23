@@ -1,6 +1,6 @@
 
 import './style.css'
-import { getRecipes } from './api.js'
+import { getRecipesAndCuisines } from './api.js'
 
 const app = document.querySelector('#app')
 
@@ -299,18 +299,14 @@ async function loadRecipes() {
     status.textContent = 'Loading recipes...'
     recipesContainer.innerHTML = ''
 
-    const recipes = await getRecipes()
-    state.recipes = recipes
+    const data = await getRecipesAndCuisines()
+    state.recipes = data.recipes
 
     renderStatistics()
 
-    const cuisines = [
-      ...new Set(state.recipes.map(({ cuisine }) => cuisine)),
-    ].sort()
-
     cuisineSelect.innerHTML = '<option value="">All cuisines</option>'
 
-    cuisines.forEach((cuisine) => {
+    data.cuisines.forEach((cuisine) => {
       const option = document.createElement('option')
       option.value = cuisine
       option.textContent = cuisine
