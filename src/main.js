@@ -71,7 +71,7 @@ app.innerHTML = `
       </div>
 
       <div class="mt-4 flex items-center justify-between gap-4">
-        <p id="status" role="status" class="text-slate-700">
+        <p id="status" role="status" aria-live="polite" class="text-slate-700">
           Loading recipes...
         </p>
         <button
@@ -88,6 +88,31 @@ app.innerHTML = `
         class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
       ></div>
     </section>
+
+    <div
+      id="recipe-modal"
+      class="fixed inset-0 z-50 hidden overflow-y-auto bg-black/60 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
+      <div class="mx-auto my-8 max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
+        <div class="flex items-center justify-between gap-4">
+          <h2 id="modal-title" class="text-2xl font-bold text-slate-900">
+            Recipe details
+          </h2>
+          <button
+            id="close-modal"
+            type="button"
+            class="rounded-lg bg-slate-100 px-4 py-2 font-semibold text-slate-800"
+            aria-label="Close recipe details"
+          >
+            Close
+          </button>
+        </div>
+        <div id="modal-content" class="mt-4"></div>
+      </div>
+    </div>
   </main>
 `
 
@@ -105,6 +130,9 @@ const status = document.querySelector('#status')
 const recipesContainer = document.querySelector('#recipes')
 const totalRecipesElement = document.querySelector('#total-recipes')
 const averageRatingElement = document.querySelector('#average-rating')
+const modal = document.querySelector('#recipe-modal')
+const modalContent = document.querySelector('#modal-content')
+const closeModalButton = document.querySelector('#close-modal')
 
 function renderStatistics() {
   const totalRecipes = state.recipes.length
@@ -155,8 +183,14 @@ function renderRecipes() {
   }
 
   recipesContainer.innerHTML = sortedRecipes.map(
-    ({ image, rating }) => `
-      <article class="rounded-xl bg-white p-4 shadow-sm">
+    ({ id, image, rating }) => `
+      <article
+        class="recipe-card cursor-pointer rounded-xl bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+        data-id="${id}"
+        tabindex="0"
+        role="button"
+        aria-label="View recipe details"
+      >
         <img
           src="${image}"
           alt="Recipe"
@@ -167,6 +201,9 @@ function renderRecipes() {
         <p class="mt-2 text-sm text-slate-600"></p>
         <p class="mt-1 text-sm text-slate-600"></p>
         <p class="mt-2 font-semibold text-orange-600">⭐ ${rating}</p>
+        <p class="mt-3 text-sm font-semibold text-orange-700">
+          Click to see details →
+        </p>
       </article>
     `
   ).join('')
@@ -180,6 +217,81 @@ function renderRecipes() {
     card.querySelectorAll('p')[1].textContent =
       `Difficulty: ${recipe.difficulty}`
   })
+}
+
+function openRecipeDetails(recipeId) {
+  const recipe = state.recipes.find(
+    (item) => item.id === Number(recipeId)
+  )
+
+  if (!recipe) return
+
+  modalContent.replaceChildren()
+
+  const image = document.createElement('img')
+  image.src = recipe.image
+  image.alt = recipe.name
+  image.className = 'h-56 w-full rounded-xl object-cover'
+
+  const summary = document.createElement('p')
+  summary.className = 'mt-3 text-slate-600'
+  summary.textContent =
+    `${recipe.cuisine} cuisine • ${recipe.difficulty} • ⭐ ${recipe.rating}`
+
+  const time = document.createElement('p')
+  time.className = 'mt-2 text-slate-700'
+  time.textContent =
+    `Preparation: ${recipe.prepTimeMinutes} minutes | Cooking: ${recipe.cookTimeMinutes} minutes`
+
+  const servings = document.createElement('p')
+  servings.className = 'mt-2 text-slate-700'
+  servings.textContent = `Servings: ${recipe.servings}`
+
+  const ingredientsTitle = document.createElement('h3')
+  ingredientsTitle.className = 'mt-5 text-lg font-bold text-slate-900'
+  ingredientsTitle.textContent = 'Ingredients'
+
+  const ingredientsList = document.createElement('ul')
+  ingredientsList.className = 'mt-2 list-disc space-y-1 pl-6 text-slate-700'
+
+  recipe.ingredients.forEach((ingredient) => {
+    const item = document.createElement('li')
+    item.textContent = ingredient
+    ingredientsList.append(item)
+  })
+
+  const instructionsTitle = document.createElement('h3')
+  instructionsTitle.className = 'mt-5 text-lg font-bold text-slate-900'
+  instructionsTitle.textContent = 'Instructions'
+
+  const instructionsList = document.createElement('ol')
+  instructionsList.className = 'mt-2 list-decimal space-y-2 pl-6 text-slate-700'
+
+  recipe.instructions.forEach((instruction) => {
+    const item = document.createElement('li')
+    item.textContent = instruction
+    instructionsList.append(item)
+  })
+
+  modalContent.append(
+    image,
+    summary,
+    time,
+    servings,
+    ingredientsTitle,
+    ingredientsList,
+    instructionsTitle,
+    instructionsList
+  )
+
+  modal.classList.remove('hidden')
+  document.body.classList.add('overflow-hidden')
+  closeModalButton.focus()
+}
+
+function closeRecipeDetails() {
+  modal.classList.add('hidden')
+  document.body.classList.remove('overflow-hidden')
 }
 
 async function loadRecipes() {
@@ -227,9 +339,7 @@ async function loadRecipes() {
       </div>
     `
 
-    document.querySelector('#retry').addEventListener('click', () => {
-      loadRecipes()
-    })
+    document.querySelector('#retry').addEventListener('click', loadRecipes)
   }
 }
 
@@ -258,6 +368,37 @@ document.querySelector('#clear').addEventListener('click', () => {
   sortSelect.value = 'name'
 
   renderRecipes()
+})
+
+recipesContainer.addEventListener('click', (event) => {
+  const card = event.target.closest('.recipe-card')
+
+  if (card) {
+    openRecipeDetails(card.dataset.id)
+  }
+})
+
+recipesContainer.addEventListener('keydown', (event) => {
+  const card = event.target.closest('.recipe-card')
+
+  if (card && (event.key === 'Enter' || event.key === ' ')) {
+    event.preventDefault()
+    openRecipeDetails(card.dataset.id)
+  }
+})
+
+closeModalButton.addEventListener('click', closeRecipeDetails)
+
+modal.addEventListener('click', (event) => {
+  if (event.target === modal) {
+    closeRecipeDetails()
+  }
+})
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    closeRecipeDetails()
+  }
 })
 
 loadRecipes()
