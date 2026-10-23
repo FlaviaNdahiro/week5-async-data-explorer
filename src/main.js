@@ -175,8 +175,30 @@ async function loadRecipes() {
     })
 
     renderRecipes()
-  } catch (error) {
+    } catch (error) {
     status.textContent = `Could not load recipes: ${error.message}`
+
+    recipesContainer.innerHTML = `
+      <div class="rounded-xl bg-white p-6 shadow-sm sm:col-span-2 lg:col-span-3">
+        <p class="font-semibold text-red-600">
+          Something went wrong while loading recipes.
+        </p>
+        <p class="mt-2 text-slate-600">
+          Please check your internet connection and try again.
+        </p>
+        <button
+          id="retry"
+          type="button"
+          class="mt-4 rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white"
+        >
+          Retry
+        </button>
+      </div>
+    `
+
+    document.querySelector('#retry').addEventListener('click', () => {
+      loadRecipes()
+    })
   }
 }
 
