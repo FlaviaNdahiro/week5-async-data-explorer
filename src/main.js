@@ -45,19 +45,29 @@ app.innerHTML = `
         </label>
       </div>
 
-      <div class="mt-4">
-        <label class="block">
-          <span class="mb-1 block font-medium text-slate-700">
-            Sort recipes
-          </span>
-          <select
-            id="sort"
-            class="w-full rounded-lg border border-orange-200 bg-white p-3"
-          >
-            <option value="name">Name (A–Z)</option>
-            <option value="rating">Rating (highest first)</option>
-          </select>
-        </label>
+      <label class="mt-4 block">
+        <span class="mb-1 block font-medium text-slate-700">
+          Sort recipes
+        </span>
+        <select
+          id="sort"
+          class="w-full rounded-lg border border-orange-200 bg-white p-3"
+        >
+          <option value="name">Name (A–Z)</option>
+          <option value="rating">Rating (highest first)</option>
+        </select>
+      </label>
+
+      <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div class="rounded-xl bg-white p-5 shadow-sm">
+          <p class="text-sm text-slate-600">Total recipes</p>
+          <p id="total-recipes" class="mt-2 text-3xl font-bold text-orange-600">0</p>
+        </div>
+
+        <div class="rounded-xl bg-white p-5 shadow-sm">
+          <p class="text-sm text-slate-600">Average rating</p>
+          <p id="average-rating" class="mt-2 text-3xl font-bold text-orange-600">0</p>
+        </div>
       </div>
 
       <div class="mt-4 flex items-center justify-between gap-4">
@@ -93,6 +103,24 @@ const cuisineSelect = document.querySelector('#cuisine')
 const sortSelect = document.querySelector('#sort')
 const status = document.querySelector('#status')
 const recipesContainer = document.querySelector('#recipes')
+const totalRecipesElement = document.querySelector('#total-recipes')
+const averageRatingElement = document.querySelector('#average-rating')
+
+function renderStatistics() {
+  const totalRecipes = state.recipes.length
+
+  const totalRating = state.recipes.reduce(
+    (sum, recipe) => sum + recipe.rating,
+    0
+  )
+
+  const averageRating = totalRecipes > 0
+    ? (totalRating / totalRecipes).toFixed(1)
+    : '0'
+
+  totalRecipesElement.textContent = totalRecipes
+  averageRatingElement.textContent = averageRating
+}
 
 function renderRecipes() {
   const filteredRecipes = state.recipes.filter((recipe) => {
@@ -157,9 +185,12 @@ function renderRecipes() {
 async function loadRecipes() {
   try {
     status.textContent = 'Loading recipes...'
+    recipesContainer.innerHTML = ''
 
     const recipes = await getRecipes()
     state.recipes = recipes
+
+    renderStatistics()
 
     const cuisines = [
       ...new Set(state.recipes.map(({ cuisine }) => cuisine)),
@@ -175,7 +206,7 @@ async function loadRecipes() {
     })
 
     renderRecipes()
-    } catch (error) {
+  } catch (error) {
     status.textContent = `Could not load recipes: ${error.message}`
 
     recipesContainer.innerHTML = `
